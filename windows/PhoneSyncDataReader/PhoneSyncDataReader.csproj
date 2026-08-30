@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PhoneSyncDataReader</RootNamespace>
+    <AssemblyName>PhoneSyncDataReader</AssemblyName>
+    <ApplicationIcon>Assets\PhoneSyncDataReader.ico</ApplicationIcon>
+    <Version>2.4.0</Version>
+    <FileVersion>2.4.0.0</FileVersion>
+    <AssemblyVersion>2.4.0.0</AssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\PhoneSyncDataReader.ico" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.12" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

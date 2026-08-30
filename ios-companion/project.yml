@@ -1,0 +1,29 @@
+name: PhoneSyncCompanion
+options:
+  deploymentTarget:
+    iPhoneOS: "14.0"
+  bundleIdPrefix: com.jerrywolff
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+targets:
+  PhoneSyncCompanion:
+    type: application
+    platform: iOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: IPhoneDataServer.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jerrywolff.phonesyncusbc
+        INFOPLIST_KEY_CFBundleDisplayName: PhoneSync Companion
+        INFOPLIST_KEY_LSRequiresIPhoneOS: true
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Android recovery requires local network access to connect to this iPhone.
+        INFOPLIST_KEY_NSBonjourServices:
+          - _phonesync._tcp
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: false
+    scheme:
+      gatherCoverageData: false
+      testTargets: []

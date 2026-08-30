@@ -1,0 +1,1 @@
+# Keep module-specific rules here when release shrinking requires them.

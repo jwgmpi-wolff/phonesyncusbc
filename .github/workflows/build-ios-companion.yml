@@ -1,0 +1,49 @@
+name: Build iPhone companion IPA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ios-companion/**"
+      - ".github/workflows/build-ios-companion.yml"
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios-companion
+        run: xcodegen generate
+
+      - name: Build unsigned iOS app
+        working-directory: ios-companion
+        run: |
+          xcodebuild \
+            -project PhoneSyncCompanion.xcodeproj \
+            -scheme PhoneSyncCompanion \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Package IPA
+        run: |
+          mkdir -p ios-companion/ipa/Payload
+          cp -R ios-companion/build/Build/Products/Release-iphoneos/PhoneSyncCompanion.app ios-companion/ipa/Payload/
+          cd ios-companion/ipa
+          zip -qry ../PhoneSyncCompanion-unsigned.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhoneSyncCompanion-unsigned-ipa
+          path: ios-companion/PhoneSyncCompanion-unsigned.ipa
+          if-no-files-found: error

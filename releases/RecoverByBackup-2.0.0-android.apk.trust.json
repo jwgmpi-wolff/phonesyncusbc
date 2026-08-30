@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "applicationId": "com.jerrywolff.phonesynctabletreader",
+  "versionCode": 7,
+  "versionName": "2.0.0",
+  "sha256": "c7964251dff33c89a5123b8bfdbea91e803fd04b864d6bb9df5c4daeec48792b",
+  "signerCertificateSha256": "a14e72efffc6bccc9ef4d11c88dd53719078fd9713ed315c7eb237b425e35c8b"
+}
