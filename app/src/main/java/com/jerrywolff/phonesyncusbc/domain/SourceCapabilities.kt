@@ -1,6 +1,7 @@
 package com.jerrywolff.phonesyncusbc.domain
 
 enum class AccessMode {
+    ADB,
     MTP,
     PTP,
     MTP_PTP,
@@ -42,13 +43,16 @@ data class SourceCapabilities(
 
 object SourceCapabilityPolicy {
     fun forSource(source: DetectedSource): SourceCapabilities {
+        val ownerAuthorizedAdb = source.supportsAdbSharedStorage()
         val mediaMode = when (source.platform) {
             SourcePlatform.IOS -> AccessMode.PTP
-            SourcePlatform.ANDROID, SourcePlatform.WINDOWS_PHONE -> AccessMode.MTP
+            SourcePlatform.ANDROID -> if (ownerAuthorizedAdb) AccessMode.ADB else AccessMode.MTP
+            SourcePlatform.WINDOWS_PHONE -> AccessMode.MTP
             SourcePlatform.UNKNOWN -> AccessMode.MTP_PTP
         }
         val documentMode = when (source.platform) {
-            SourcePlatform.ANDROID, SourcePlatform.WINDOWS_PHONE -> AccessMode.MTP
+            SourcePlatform.ANDROID -> if (ownerAuthorizedAdb) AccessMode.ADB else AccessMode.MTP
+            SourcePlatform.WINDOWS_PHONE -> AccessMode.MTP
             SourcePlatform.IOS -> AccessMode.PORTABLE_EXPORT
             SourcePlatform.UNKNOWN -> AccessMode.MTP_PTP
         }
@@ -67,19 +71,19 @@ object SourceCapabilityPolicy {
                 CategoryCapability(
                     ConsentCategory.PHOTOS_AND_VIDEOS,
                     mediaMode,
-                    if (mediaMode == AccessMode.PTP) {
-                        "Photos and videos exposed by iPhone over PTP"
-                    } else {
-                        "Photos and videos exposed by the source phone"
+                    when (mediaMode) {
+                        AccessMode.PTP -> "Photos and videos exposed by iPhone over PTP"
+                        AccessMode.ADB -> "Photos and videos in shared storage exposed after owner-approved USB debugging"
+                        else -> "Photos and videos exposed by the source phone"
                     },
                 ),
                 CategoryCapability(
                     ConsentCategory.DOCUMENTS,
                     documentMode,
-                    if (documentMode == AccessMode.PORTABLE_EXPORT) {
-                        "Documents explicitly exported from iOS apps"
-                    } else {
-                        "Documents exposed by the source phone"
+                    when (documentMode) {
+                        AccessMode.PORTABLE_EXPORT -> "Documents explicitly exported from iOS apps"
+                        AccessMode.ADB -> "Documents in shared storage exposed after owner-approved USB debugging"
+                        else -> "Documents exposed by the source phone"
                     },
                 ),
                 CategoryCapability(

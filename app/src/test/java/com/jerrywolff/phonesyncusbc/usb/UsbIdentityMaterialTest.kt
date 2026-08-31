@@ -2,9 +2,17 @@ package com.jerrywolff.phonesyncusbc.usb
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UsbIdentityMaterialTest {
+    @Test
+    fun `standard Android debug interface is detected without matching arbitrary vendor interfaces`() {
+        assertTrue(isAdbInterface(interfaceClass = 0xFF, interfaceSubclass = 0x42, interfaceProtocol = 0x01))
+        assertFalse(isAdbInterface(interfaceClass = 0xFF, interfaceSubclass = 0x00, interfaceProtocol = 0x00))
+        assertFalse(isAdbInterface(interfaceClass = 0x06, interfaceSubclass = 0x01, interfaceProtocol = 0x01))
+    }
+
     @Test
     fun `descriptor identity is stable across volatile Android device paths`() {
         val first = stableUsbIdentityMaterial(

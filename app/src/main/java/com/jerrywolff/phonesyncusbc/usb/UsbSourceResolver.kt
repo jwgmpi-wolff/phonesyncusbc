@@ -12,6 +12,8 @@ import com.jerrywolff.phonesyncusbc.domain.SourcePlatformDetector
 import com.jerrywolff.phonesyncusbc.domain.UsbDescriptor
 import com.jerrywolff.phonesyncusbc.domain.UsbTransport
 import com.jerrywolff.phonesyncusbc.domain.PhysicalConnection
+import dadb.Dadb
+import java.net.InetAddress
 
 data class PeerIdentity(
     val peerId: String,
@@ -49,8 +51,19 @@ class MtpSession internal constructor(
     }
 }
 
+class AdbSession internal constructor(
+    val client: Dadb,
+    private val bridge: UsbAdbBridge,
+) : AutoCloseable {
+    override fun close() {
+        runCatching { client.close() }
+        bridge.close()
+    }
+}
+
 class UsbSourceResolver(context: Context) {
     private val usbManager = context.getSystemService(UsbManager::class.java)
+    private val adbKeyStore = AdbKeyStore(context)
 
     fun attachedSources(): List<AttachedSource> {
         return usbManager.deviceList.values
@@ -130,10 +143,32 @@ class UsbSourceResolver(context: Context) {
         val connection = usbManager.openDevice(device) ?: return null
         val mtpDevice = MtpDevice(device)
         if (!mtpDevice.open(connection)) {
+            runCatching { mtpDevice.close() }
             connection.close()
             return null
         }
         return MtpSession(mtpDevice, connection)
+    }
+
+    fun openAdb(device: UsbDevice): AdbSession? {
+        check(usbManager.hasPermission(device)) { "USB permission is required" }
+        val bridge = UsbAdbBridge.open(usbManager, device) ?: return null
+        return try {
+            AdbSession(
+                client = Dadb.create(
+                    host = InetAddress.getLoopbackAddress().hostAddress.orEmpty(),
+                    port = bridge.port,
+                    keyPair = adbKeyStore.loadOrCreate(),
+                    connectTimeout = ADB_CONNECT_TIMEOUT_MILLIS,
+                    socketTimeout = ADB_SOCKET_TIMEOUT_MILLIS,
+                    keepAlive = true,
+                ),
+                bridge = bridge,
+            )
+        } catch (throwable: Throwable) {
+            bridge.close()
+            throw throwable
+        }
     }
 
     private fun isPhoneCandidate(device: UsbDevice): Boolean {
@@ -155,21 +190,30 @@ class UsbSourceResolver(context: Context) {
     }
 
     private fun transportsFor(device: UsbDevice): Set<UsbTransport> {
+        val hasAdbInterface = (0 until device.interfaceCount).any { index ->
+            val usbInterface = device.getInterface(index)
+            isAdbInterface(
+                usbInterface.interfaceClass,
+                usbInterface.interfaceSubclass,
+                usbInterface.interfaceProtocol,
+            )
+        }
         val hasMediaInterface = (0 until device.interfaceCount).any { index ->
             val usbInterface = device.getInterface(index)
             usbInterface.interfaceClass == UsbConstants.USB_CLASS_STILL_IMAGE ||
-                usbInterface.interfaceClass == 0xFF ||
                 usbInterface.interfaceClass == 0xEF
         }
-        if (!hasMediaInterface) return emptySet()
-        return if (device.vendorId == APPLE_VENDOR_ID) {
-            setOf(UsbTransport.PTP)
-        } else {
-            setOf(UsbTransport.MTP)
+        return buildSet {
+            if (hasAdbInterface) add(UsbTransport.ADB)
+            if (hasMediaInterface) {
+                add(if (device.vendorId == APPLE_VENDOR_ID) UsbTransport.PTP else UsbTransport.MTP)
+            }
         }
     }
 
     private companion object {
+        const val ADB_CONNECT_TIMEOUT_MILLIS = 5_000
+        const val ADB_SOCKET_TIMEOUT_MILLIS = 120_000
         const val APPLE_VENDOR_ID = 0x05AC
         val KNOWN_PHONE_VENDOR_IDS = setOf(
             APPLE_VENDOR_ID,

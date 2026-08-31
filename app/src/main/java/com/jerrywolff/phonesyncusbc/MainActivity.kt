@@ -105,6 +105,7 @@ import com.jerrywolff.phonesyncusbc.domain.LOGICAL_ACQUISITION_LIMIT
 import com.jerrywolff.phonesyncusbc.domain.TrustContext
 import com.jerrywolff.phonesyncusbc.domain.TrustDecision
 import com.jerrywolff.phonesyncusbc.domain.TrustPolicy
+import com.jerrywolff.phonesyncusbc.domain.supportsAdbSharedStorage
 import com.jerrywolff.phonesyncusbc.usb.AttachedSource
 import com.jerrywolff.phonesyncusbc.usb.IdentityReadProgress
 import com.jerrywolff.phonesyncusbc.usb.IdentityReadStage
@@ -1067,13 +1068,23 @@ private fun PhoneSyncApp(onRequestUsbPermission: (AttachedSource) -> Unit) {
                         messageSection = AppSection.USB_SOURCE
                     }
                 }
-                application.mtpSyncEngine.sync(
-                    source = currentSource,
-                    identity = currentIdentity,
-                    recoveryDeviceType = recoveryDeviceType,
-                    authorizedCategories = selectedCategories,
-                    onProgress = publishProgress,
-                )
+                if (currentSource.detected.supportsAdbSharedStorage()) {
+                    application.adbSyncEngine.sync(
+                        source = currentSource,
+                        identity = currentIdentity,
+                        recoveryDeviceType = recoveryDeviceType,
+                        authorizedCategories = selectedCategories,
+                        onProgress = publishProgress,
+                    )
+                } else {
+                    application.mtpSyncEngine.sync(
+                        source = currentSource,
+                        identity = currentIdentity,
+                        recoveryDeviceType = recoveryDeviceType,
+                        authorizedCategories = selectedCategories,
+                        onProgress = publishProgress,
+                    )
+                }
             }
             syncing = false
             val scan = result.mtpScan
@@ -1516,6 +1527,7 @@ private fun PhoneSyncApp(onRequestUsbPermission: (AttachedSource) -> Unit) {
                                 auditRevision = auditRevision,
                                 recoveryDeviceType = recoveryDeviceType,
                                 sourcePlatform = source.detected.platform,
+                                adbAvailable = source.detected.supportsAdbSharedStorage(),
                                 identitySerialAvailable = identity!!.serialAvailable,
                                 targetName = targetName,
                                 auditLog = application.auditLog,
@@ -1659,6 +1671,13 @@ private fun TrustApproval(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Trust External Source", style = MaterialTheme.typography.headlineSmall)
             Text("Authorize every data category this source exposes over USB or as an export file.")
+            if (capabilities.categories.any { it.accessMode == com.jerrywolff.phonesyncusbc.domain.AccessMode.ADB }) {
+                Text(
+                    "ADB access requires a second approval on the unlocked source phone. Confirm its native " +
+                        "Allow USB debugging prompt when recovery starts.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             CapabilityList(capabilities)
             Button(
                 onClick = onApprove,
@@ -1698,6 +1717,7 @@ private fun TrustedDashboard(
     auditRevision: Int,
     recoveryDeviceType: RecoveryDeviceType,
     sourcePlatform: SourcePlatform,
+    adbAvailable: Boolean,
     identitySerialAvailable: Boolean,
     targetName: String,
     auditLog: com.jerrywolff.phonesyncusbc.data.AuditLog,
@@ -1730,6 +1750,13 @@ private fun TrustedDashboard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Read-only logical recovery", style = MaterialTheme.typography.titleMedium)
             Text("All USB-visible file categories authorized: ${categories.joinToString { it.label() }}")
+            if (adbAvailable) {
+                Text(
+                    "ADB shared-storage access detected. Keep the source unlocked and approve Allow USB debugging. " +
+                        "Phone Sync runs fixed read-only commands and does not request root access.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             Text(
                 if (identitySerialAvailable) {
                     "Trusted identity: source-reported serial available."
@@ -1877,7 +1904,7 @@ private fun TrustedDashboard(
             }
             Text(
                 "This reads SMS only when the connected source exposes an SMS export or companion-protocol result over USB. " +
-                    "MTP cannot open the source phone's private SMS database.",
+                    "Neither MTP nor a non-root ADB shell can open the source phone's private SMS database.",
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedButton(
@@ -1902,15 +1929,16 @@ private fun TrustedDashboard(
                 Text("View recovered artifacts")
             }
             Text(
-                "Data may be recovered from objects advertised by the active tethered device over MTP/PTP or from an owner-approved " +
-                    "backup/archive/export explicitly imported for this selected source. Every path is inventoried and integrity checked.",
+                "Data may be recovered from owner-approved ADB shared storage, objects advertised over MTP/PTP, or an " +
+                    "owner-approved backup/archive/export explicitly imported for this selected source. Every path is inventoried " +
+                    "and integrity checked.",
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(
                 when (sourcePlatform) {
                     SourcePlatform.ANDROID ->
-                        "Android MTP cannot read app-private SMS, call, or mail databases. Prepare USB-visible exports " +
-                            "on the source phone first."
+                        "Android MTP and non-root ADB cannot read app-private SMS, call, or mail databases. Prepare " +
+                            "shared-storage exports on the source phone first."
                     SourcePlatform.IOS ->
                         "iPhone PTP exposes media, not its private SMS, call, chat, mail, or notification databases. " +
                             "Use supported source-app export files for those records."
@@ -1948,10 +1976,17 @@ private fun SourceExportReadiness(
     val missing = SourceExportRequirements.missingFrom(recoveredCategories)
     val ownerExportWorkflow = OwnerExportCoordinator.trigger(sourcePlatform, recoveredCategories)
     var showOwnerActions by remember(recoveredCategories) { mutableStateOf(false) }
+    val accessLabel = if (
+        scan.accessMethod == com.jerrywolff.phonesyncusbc.data.RecoveryAccessMethod.ADB_SHARED_STORAGE
+    ) {
+        "owner-approved ADB shared storage"
+    } else {
+        "MTP/PTP"
+    }
 
     HorizontalDivider()
     Text("USB export readiness", style = MaterialTheme.typography.titleMedium)
-    Text("${scan.scannedItems} USB-visible files scanned.")
+    Text("${scan.scannedItems} files scanned through $accessLabel.")
     Text(
         "Downloads visible: ${if (scan.downloadDirectoryVisible) "Yes" else "No"} · " +
             "Recovery export folders visible: ${if (scan.phoneSyncDirectoryVisible) "Yes" else "No"}",
@@ -2644,6 +2679,13 @@ private fun SourceConnectionPanel(
                 }
                 Text(source.detected.displayName, style = MaterialTheme.typography.titleMedium)
                 Text("${source.detected.platform} · ${source.detected.family} · ${source.detected.physicalConnection}")
+                if (source.detected.supportsAdbSharedStorage()) {
+                    Text(
+                        "ADB shared-storage mode available. After this app receives USB access, unlock the source and " +
+                            "approve its Allow USB debugging prompt when recovery starts.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 Text("Recovery device type", style = MaterialTheme.typography.labelLarge)
                 RecoveryDeviceType.entries.chunked(2).forEach { types ->
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {

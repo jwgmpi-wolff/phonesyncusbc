@@ -10,6 +10,7 @@ import com.jerrywolff.phonesyncusbc.data.IosBackupImporter
 import com.jerrywolff.phonesyncusbc.data.OwnerApprovedArchiveImporter
 import com.jerrywolff.phonesyncusbc.data.TrustStore
 import com.jerrywolff.phonesyncusbc.recovery.AndroidPeerTransferServer
+import com.jerrywolff.phonesyncusbc.sync.AdbSyncEngine
 import com.jerrywolff.phonesyncusbc.sync.MtpSyncEngine
 import com.jerrywolff.phonesyncusbc.usb.UsbSourceResolver
 
@@ -39,6 +40,9 @@ class PhoneSyncApplication : Application() {
     val usbSourceResolver: UsbSourceResolver by lazy { UsbSourceResolver(this) }
     val mtpSyncEngine: MtpSyncEngine by lazy {
         MtpSyncEngine(this, auditLog, usbSourceResolver)
+    }
+    val adbSyncEngine: AdbSyncEngine by lazy {
+        AdbSyncEngine(this, auditLog, usbSourceResolver)
     }
 
     private companion object {

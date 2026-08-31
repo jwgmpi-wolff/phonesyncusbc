@@ -17,6 +17,42 @@ class SourceCapabilityPolicyTest {
     }
 
     @Test
+    fun `Android with an ADB interface uses owner-authorized ADB for shared storage`() {
+        val capabilities = SourceCapabilityPolicy.forSource(
+            DetectedSource(
+                SourcePlatform.ANDROID,
+                SourceFamily.GOOGLE_PHONE,
+                "Pixel 9",
+                transports = setOf(UsbTransport.MTP, UsbTransport.ADB),
+            ),
+        )
+
+        assertEquals(AccessMode.ADB, capabilities.modeFor(ConsentCategory.PHOTOS_AND_VIDEOS))
+        assertEquals(AccessMode.ADB, capabilities.modeFor(ConsentCategory.DOCUMENTS))
+        assertFalse(
+            capabilities.protectedSurfaces
+                .first { it.surface == ProtectedSurface.OTHER_APP_PRIVATE_STORAGE }
+                .supported,
+        )
+    }
+
+    @Test
+    fun `unknown vendor with an ADB-shaped interface keeps generic recovery routing`() {
+        val source = DetectedSource(
+            SourcePlatform.UNKNOWN,
+            SourceFamily.UNKNOWN,
+            "USB device",
+            transports = setOf(UsbTransport.ADB),
+        )
+
+        assertFalse(source.supportsAdbSharedStorage())
+        assertEquals(
+            AccessMode.MTP_PTP,
+            SourceCapabilityPolicy.forSource(source).modeFor(ConsentCategory.DOCUMENTS),
+        )
+    }
+
+    @Test
     fun `iPhone media uses PTP while documents require exports`() {
         val capabilities = SourceCapabilityPolicy.forSource(
             DetectedSource(SourcePlatform.IOS, SourceFamily.IPHONE, "iPhone"),

@@ -11,6 +11,7 @@ import android.webkit.MimeTypeMap
 import com.jerrywolff.phonesyncusbc.domain.ConsentCategory
 import com.jerrywolff.phonesyncusbc.domain.TransferClassifier
 import java.io.InputStream
+import java.io.OutputStream
 import java.security.MessageDigest
 
 data class TargetWriteResult(
@@ -274,6 +275,31 @@ class TargetMediaStore(private val context: Context) {
                     onBytesTransferred(total)
                 }
                 total
+            }
+        }
+    }
+
+    fun copyFromWriter(
+        displayName: String,
+        category: ConsentCategory,
+        sourceName: String,
+        modifiedAtEpochMillis: Long,
+        expectedBytes: Long,
+        onIntegrityBytesRead: (Long) -> Unit = {},
+        writer: (OutputStream) -> Long,
+    ): TargetWriteResult {
+        return writePendingItem(
+            displayName = displayName,
+            category = category,
+            sourceName = sourceName,
+            modifiedAtEpochMillis = modifiedAtEpochMillis,
+            mimeType = mimeType(displayName, category),
+            expectedBytes = expectedBytes,
+            onIntegrityBytesRead = onIntegrityBytesRead,
+        ) { destination ->
+            context.contentResolver.openOutputStream(destination, "w").use { output ->
+                checkNotNull(output) { "Android could not open the destination item." }
+                writer(output)
             }
         }
     }

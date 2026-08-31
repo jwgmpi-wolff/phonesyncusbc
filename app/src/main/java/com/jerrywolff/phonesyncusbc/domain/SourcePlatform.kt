@@ -16,6 +16,7 @@ enum class SourceFamily {
 }
 
 enum class UsbTransport {
+    ADB,
     MTP,
     PTP,
     UNKNOWN,
@@ -43,7 +44,12 @@ data class DetectedSource(
     val family: SourceFamily,
     val displayName: String,
     val physicalConnection: PhysicalConnection = PhysicalConnection.UNKNOWN,
+    val transports: Set<UsbTransport> = emptySet(),
 )
+
+fun DetectedSource.supportsAdbSharedStorage(): Boolean {
+    return platform == SourcePlatform.ANDROID && UsbTransport.ADB in transports
+}
 
 object SourcePlatformDetector {
     private const val APPLE_VENDOR_ID = 0x05AC
@@ -62,6 +68,7 @@ object SourcePlatformDetector {
                 family = SourceFamily.IPHONE,
                 displayName = descriptor.productName ?: "iPhone",
                 physicalConnection = descriptor.physicalConnection,
+                transports = descriptor.transports,
             )
 
             descriptor.vendorId == GOOGLE_VENDOR_ID || "pixel" in identity -> DetectedSource(
@@ -69,6 +76,7 @@ object SourcePlatformDetector {
                 family = SourceFamily.GOOGLE_PHONE,
                 displayName = descriptor.productName ?: "Google phone",
                 physicalConnection = descriptor.physicalConnection,
+                transports = descriptor.transports,
             )
 
             isWindowsPhone(descriptor.vendorId, identity) -> DetectedSource(
@@ -76,6 +84,7 @@ object SourcePlatformDetector {
                 family = SourceFamily.WINDOWS_PHONE,
                 displayName = descriptor.productName ?: "Windows Phone",
                 physicalConnection = descriptor.physicalConnection,
+                transports = descriptor.transports,
             )
 
             "android" in identity || descriptor.vendorId in ANDROID_VENDOR_IDS -> DetectedSource(
@@ -83,6 +92,7 @@ object SourcePlatformDetector {
                 family = SourceFamily.ANDROID_PHONE,
                 displayName = descriptor.productName ?: "Android phone",
                 physicalConnection = descriptor.physicalConnection,
+                transports = descriptor.transports,
             )
 
             else -> DetectedSource(
@@ -90,6 +100,7 @@ object SourcePlatformDetector {
                 family = SourceFamily.UNKNOWN,
                 displayName = descriptor.productName ?: "USB device",
                 physicalConnection = descriptor.physicalConnection,
+                transports = descriptor.transports,
             )
         }
     }

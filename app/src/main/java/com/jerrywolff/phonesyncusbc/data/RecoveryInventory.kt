@@ -25,6 +25,11 @@ enum class RecoveryItemStatus {
     FAILED,
 }
 
+enum class RecoveryAccessMethod {
+    MTP_PTP,
+    ADB_SHARED_STORAGE,
+}
+
 data class RecoveryInventoryItem(
     val sourcePath: String,
     val category: ConsentCategory? = null,
@@ -107,6 +112,7 @@ class RecoveryInventoryWriter(private val context: Context) {
         sessionStatus: SyncStatus,
         sessionStartedAtEpochMillis: Long,
         sessionCompletedAtEpochMillis: Long,
+        accessMethod: RecoveryAccessMethod = RecoveryAccessMethod.MTP_PTP,
         items: List<RecoveryInventoryItem>,
     ): RecoveryInventoryResult {
         val displayName = "PhoneSync-Recovery-Inventory-${timestamp()}.json"
@@ -134,6 +140,7 @@ class RecoveryInventoryWriter(private val context: Context) {
                 sessionStatus = sessionStatus,
                 sessionStartedAtEpochMillis = sessionStartedAtEpochMillis,
                 sessionCompletedAtEpochMillis = sessionCompletedAtEpochMillis,
+                accessMethod = accessMethod,
                 items = items,
             )
             context.contentResolver.openOutputStream(destination, "w").use { output ->
@@ -176,6 +183,7 @@ class RecoveryInventoryWriter(private val context: Context) {
         sessionStatus: SyncStatus,
         sessionStartedAtEpochMillis: Long,
         sessionCompletedAtEpochMillis: Long,
+        accessMethod: RecoveryAccessMethod,
         items: List<RecoveryInventoryItem>,
     ): JSONObject {
         val summary = summarizeRecoveryItems(items)
@@ -193,7 +201,7 @@ class RecoveryInventoryWriter(private val context: Context) {
                     .put("displayName", sourceName)
                     .put("platform", sourcePlatform.name)
                     .put("recoveryDeviceType", recoveryDeviceType.name)
-                    .put("accessMethod", "MTP_PTP")
+                    .put("accessMethod", accessMethod.name)
                     .put("readOnly", true)
                     .put("securityControlsBypassed", false),
             )
@@ -207,14 +215,19 @@ class RecoveryInventoryWriter(private val context: Context) {
                     .put("passwordHandling", "COPIED_OPAQUE_NO_DECRYPTION")
                     .put("passkeyHandling", "PROVIDER_MANAGED_PRIVATE_KEYS_NOT_EXTRACTED")
                     .put("passkeyRestoreRequired", true)
-                    .put("acquisitionType", "READ_ONLY_LOGICAL_MTP_PTP")
+                    .put("acquisitionType", "READ_ONLY_LOGICAL_${accessMethod.name}")
                     .put("physicalDiskImageCreated", false)
                     .put("deletedBlockCarvingPerformed", false),
             )
             .put(
                 "scope",
-                "Only objects advertised by the external device through owner-authorized MTP/PTP access were read. " +
-                    "Encrypted, password-protected, locked, and otherwise inaccessible data was not bypassed. " +
+                when (accessMethod) {
+                    RecoveryAccessMethod.MTP_PTP ->
+                        "Only objects advertised by the external device through owner-authorized MTP/PTP access were read. "
+                    RecoveryAccessMethod.ADB_SHARED_STORAGE ->
+                        "Only files readable by the Android shell account under primary shared storage were read after " +
+                            "the owner approved USB debugging. No root command or private app-data path was requested. "
+                } + "Encrypted, password-protected, locked, and otherwise inaccessible data was not bypassed. " +
                     LOGICAL_ACQUISITION_LIMIT,
             )
             .put(

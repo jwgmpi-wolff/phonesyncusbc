@@ -5,6 +5,7 @@ coreKtx = "1.15.0"
 activityCompose = "1.10.0"
 composeBom = "2025.01.01"
 documentFile = "1.0.1"
+dadb = "2.0.0"
 gson = "2.11.0"
 kotlinxCoroutines = "1.10.1"
 kotlinxSerialization = "1.8.0"
@@ -23,6 +24,7 @@ androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-te
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentFile" }
+dadb = { group = "dev.mobile", name = "dadb", version.ref = "dadb" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }

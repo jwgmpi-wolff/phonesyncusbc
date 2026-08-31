@@ -6,10 +6,10 @@ Android USB host for owner-authorized, external-device-only data recovery and re
 
 [Download the current debug APK](releases/PhoneSyncUSB-C-debug.apk).
 
-RecoverByBackup USB backup app 2.0.0:
+RecoverByBackup USB backup app 2.2.0:
 
-- [RecoverByBackup APK](releases/RecoverByBackup-2.0.0-android.apk)
-- [RecoverByBackup trust manifest](releases/RecoverByBackup-2.0.0-android.apk.trust.json)
+- [RecoverByBackup APK](releases/RecoverByBackup-2.2.0-android.apk)
+- [RecoverByBackup trust manifest](releases/RecoverByBackup-2.2.0-android.apk.trust.json)
 
 Windows archive reader 2.4.0:
 
@@ -37,14 +37,25 @@ Android does not treat GitHub as an app store, so manual downloads still require
 
 ## Workflow
 
-1. Open **USB Source**, connect an owned Android phone, iPhone, or MTP/PTP device with a data-capable USB cable, and approve Android's USB prompt.
+1. Open **USB Source**, connect an owned Android phone, iPhone, or MTP/PTP device with a data-capable USB cable, and approve Android's USB-device prompt on the receiving device.
 2. Select the source profile: **Windows PC**, **Android**, **iPhone/iPad**, or **Camera/IoT**.
-3. Authorize the available categories, then tap **Recover all USB-visible data**. Phone Sync requests every advertised object and recognizes media, documents, application data, configuration, logs, system information, messages, and password artifacts.
-4. After acquisition, use **Preserve this recovery set** to copy verified artifacts to local or provider storage.
-5. Open **Recovered files**, then **Parsed data reader**, to build or refresh the local searchable index.
-6. Open **Backup** for consolidated preservation progress and destination activity for the active or most recently recovered external source.
+3. For broader Android shared-storage access, enable **Developer options > USB debugging** on the source phone. Keep it unlocked and approve its native **Allow USB debugging?** RSA prompt when recovery starts.
+4. Authorize the available categories, then tap **Recover all USB-visible data**. Phone Sync uses owner-approved ADB shared storage when available and otherwise falls back to MTP/PTP.
+5. After acquisition, use **Preserve this recovery set** to copy verified artifacts to local or provider storage.
+6. Open **Recovered files**, then **Parsed data reader**, to build or refresh the local searchable index.
+7. Open **Backup** for consolidated preservation progress and destination activity for the active or most recently recovered external source.
 
 Installed storage apps handle their own authentication through Android. Phone Sync does not require provider client IDs, OAuth configuration, or embedded credentials.
+
+## Owner-Approved ADB Access
+
+Phone Sync embeds the Apache-2.0 licensed [DADB](https://github.com/mobile-dev-inc/dadb) protocol engine. It uses Android's standard ADB USB interface and RSA authorization rather than invoking LADB, Termux, Tasker, or a browser. Those apps do not provide a stable inter-app API for controlling a separately connected USB source.
+
+The receiving device must support USB host mode. The source Android device must expose the standard ADB interface, have USB debugging enabled, remain unlocked during authorization, and show an **Allow USB debugging?** prompt that the owner approves. Phone Sync keeps its ADB private key in app-private, no-backup storage and binds its internal USB bridge to loopback only.
+
+ADB mode runs fixed read-only enumeration, metadata, and pull operations against `/storage/emulated/0`. It copies every shell-readable file from primary shared storage through the existing category authorization, duplicate detection, SHA-256 verification, audit, and inventory pipeline. It provides no arbitrary shell UI, does not request root, does not install software on the source, and does not write to or delete source files. If ADB is unavailable, Phone Sync retains the original MTP/PTP path.
+
+On a stock non-rooted Android source, ADB still cannot read `/data/user`, `/data/data`, hardware-backed keys, or another app's private sandbox. SMS, calls, chats, email, credentials, and other protected records are recoverable only when the source OS or owning app has placed a supported export in shared storage.
 
 ## Recovery Purpose and Limits
 
@@ -94,7 +105,8 @@ RecoverByBackup does not claim a physical or complete device image. SMS, message
 - **Legacy MTP sources:** when a phone such as a Lumia rejects 64-bit chunked reads, Phone Sync automatically retries with MTP's standard full-object request.
 - **PTP iPhone sources:** locally available photos and videos exposed by iOS. Phone Sync tries 64-bit chunked, standard chunked, and full-file PTP reads in order.
 - **iPhone Messages/SMS:** PTP cannot expose the private Messages database. Use **Import owner-approved Apple backup ZIP** with a complete local backup created by Apple Devices on Windows or Finder on macOS. Phone Sync first preserves the complete ZIP unchanged, inventories every `Manifest.db` row as present or missing, then publishes raw `sms.db`, every SMS/iMessage row as searchable JSONL, and all declared message attachments. The Messages requirement remains visibly unresolved until message data is recovered.
-- **Android protected data:** use each app's supported export on the external phone and save the export in shared storage before connecting with **File transfer / Android Auto** mode.
+- **Android shared storage:** enable USB debugging for the owner-approved ADB path, or connect with **File transfer / Android Auto** for MTP fallback.
+- **Android protected data:** use each app's supported export on the external phone and save the export in shared storage before connecting. Neither MTP nor non-root ADB bypasses app-private storage.
 - **Email and chat:** exports must already exist in USB-visible shared storage on the external device.
 - **Owner export actions:** after a scan, **Start owner export actions** provides source-device steps for WhatsApp, Teams, Zoom, Webex, Signal, Telegram, Slack, Google Chat, Discord, Messenger, SMS, calls, mail, and other apps. Complete the owner-controlled export, then choose **Owner exports complete - rescan**.
 - **Voicemail:** export voicemail audio or visual-voicemail data on the external device into USB-visible storage before recovery.
@@ -110,7 +122,7 @@ The Android **Data Reader** tab builds a local SQLite index from the verified re
 
 On Android tablets and unfolded foldables at least 600dp wide, **Auto** uses a Windows-style three-pane layout: Query filters, selectable Records, and record Detail remain visible together with independent scrolling. The Data Reader also provides explicit **Mobile** and **Tablet** layout choices; narrow phone screens stay in the mobile layout.
 
-The separate [RecoverByBackup APK](releases/RecoverByBackup-2.0.0-android.apk) is now a standalone USB host backup application. It identifies attached USB sources, shows the detected platform/family and owner-selected recovery profile, requests Android USB permission, establishes encrypted app trust after explicit owner approval, inventories every object the source advertises through MTP/PTP, retries each supported read method twice, reopens every recovered copy for size and SHA-256 verification, and records unresolved enumeration or transfer failures.
+The separate [RecoverByBackup APK](releases/RecoverByBackup-2.2.0-android.apk) is a standalone USB host backup application. It identifies attached USB sources, shows the detected platform/family and owner-selected recovery profile, requests Android USB permission, establishes encrypted app trust after explicit owner approval, uses owner-approved ADB shared storage when available, falls back to MTP/PTP, reopens every recovered copy for size and SHA-256 verification, and records unresolved enumeration or transfer failures.
 
 Choose the destination before collection: this phone, a writable local/SD/USB/document-provider folder, OneDrive, Google Drive, or another installed app. **Recover, verify & package to selected destination** performs discovery, recovery, verification, packaging, whole-package SHA-256 verification, and destination handling as one staged job with live stage, item, byte, method, attempt, package, and copy progress. Local and SAF-folder copies are reopened and SHA-256 verified. OneDrive, Google Drive, and other app destinations receive one verified package through Android's owner-confirmed app handoff; the provider app controls remote upload completion, so RecoverByBackup reports a handoff rather than claiming cloud upload success.
 
@@ -172,7 +184,7 @@ The selected destination persists across app restarts. Phone Downloads and writa
 
 ## Permissions
 
-Phone Sync requests Android USB-host permission only. It does not request SMS, call-log, contacts, calendar, or notification-listener access on the acquisition host. It cannot bypass a source device lock, brute-force credentials, defeat encryption, or recover private stores the source OS does not advertise over MTP/PTP.
+Phone Sync requests Android USB-host permission only. For ADB mode, the source phone separately controls access with its standard USB-debugging RSA prompt. The app does not request SMS, call-log, contacts, calendar, or notification-listener access on the acquisition host. It cannot bypass a source device lock, brute-force credentials, defeat encryption, use root, or recover private stores unavailable to the Android shell account.
 
 ## Build and Push
 

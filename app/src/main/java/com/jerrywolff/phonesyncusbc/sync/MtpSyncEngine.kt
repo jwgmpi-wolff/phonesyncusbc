@@ -9,6 +9,7 @@ import com.jerrywolff.phonesyncusbc.data.DeviceIdentity
 import com.jerrywolff.phonesyncusbc.data.RecoveryInventoryItem
 import com.jerrywolff.phonesyncusbc.data.RecoveryInventoryResult
 import com.jerrywolff.phonesyncusbc.data.RecoveryInventoryWriter
+import com.jerrywolff.phonesyncusbc.data.RecoveryAccessMethod
 import com.jerrywolff.phonesyncusbc.data.RecoveryItemStatus
 import com.jerrywolff.phonesyncusbc.data.SyncStatus
 import com.jerrywolff.phonesyncusbc.data.TransferStatus
@@ -45,6 +46,7 @@ enum class SyncPhase {
 }
 
 data class MtpScanSummary(
+    val accessMethod: RecoveryAccessMethod = RecoveryAccessMethod.MTP_PTP,
     val scannedItems: Int = 0,
     val processedItems: Int = 0,
     val advertisedBytes: Long = 0,
@@ -72,6 +74,7 @@ data class SyncResult(
     val failedItems: Int,
     val bytesTransferred: Long,
     val error: String? = null,
+    val accessMethod: RecoveryAccessMethod = RecoveryAccessMethod.MTP_PTP,
     val mtpScan: MtpScanSummary? = null,
     val recoveryInventory: RecoveryInventoryResult? = null,
 )
