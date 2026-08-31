@@ -6,10 +6,10 @@ Android USB host for owner-authorized, external-device-only data recovery and re
 
 [Download the current debug APK](releases/PhoneSyncUSB-C-debug.apk).
 
-RecoverByBackup USB backup app 2.2.0:
+RecoverByBackup USB backup app 2.2.1:
 
-- [RecoverByBackup APK](releases/RecoverByBackup-2.2.0-android.apk)
-- [RecoverByBackup trust manifest](releases/RecoverByBackup-2.2.0-android.apk.trust.json)
+- [RecoverByBackup APK](releases/RecoverByBackup-2.2.1-android.apk)
+- [RecoverByBackup trust manifest](releases/RecoverByBackup-2.2.1-android.apk.trust.json)
 
 Windows archive reader 2.4.0:
 
@@ -37,7 +37,7 @@ Android does not treat GitHub as an app store, so manual downloads still require
 
 ## Workflow
 
-1. Open **USB Source**, connect an owned Android phone, iPhone, or MTP/PTP device with a data-capable USB cable, and approve Android's USB-device prompt on the receiving device.
+1. Open **USB Source** and connect an owned Android phone, iPhone, or MTP/PTP device with a data-capable cable. For Android-to-Android USB-C, choose **USB controlled by > This device** on the receiving phone and **Use USB for > File transfer** on the source phone.
 2. Select the source profile: **Windows PC**, **Android**, **iPhone/iPad**, or **Camera/IoT**.
 3. For broader Android shared-storage access, enable **Developer options > USB debugging** on the source phone. Keep it unlocked and approve its native **Allow USB debugging?** RSA prompt when recovery starts.
 4. Authorize the available categories, then tap **Recover all USB-visible data**. Phone Sync uses owner-approved ADB shared storage when available and otherwise falls back to MTP/PTP.
@@ -52,6 +52,8 @@ Installed storage apps handle their own authentication through Android. Phone Sy
 Phone Sync embeds the Apache-2.0 licensed [DADB](https://github.com/mobile-dev-inc/dadb) protocol engine. It uses Android's standard ADB USB interface and RSA authorization rather than invoking LADB, Termux, Tasker, or a browser. Those apps do not provide a stable inter-app API for controlling a separately connected USB source.
 
 The receiving device must support USB host mode. The source Android device must expose the standard ADB interface, have USB debugging enabled, remain unlocked during authorization, and show an **Allow USB debugging?** prompt that the owner approves. Phone Sync keeps its ADB private key in app-private, no-backup storage and binds its internal USB bridge to loopback only.
+
+Phone Sync listens for USB attach/detach events and also checks once per second while open, so a source appears without restarting the app. **Find USB source** always reports the scan result. If no source appears, use **Open USB settings** and confirm the receiving phone owns the USB data role; two phones cannot both remain in USB peripheral/device mode.
 
 ADB mode runs fixed read-only enumeration, metadata, and pull operations against `/storage/emulated/0`. It copies every shell-readable file from primary shared storage through the existing category authorization, duplicate detection, SHA-256 verification, audit, and inventory pipeline. It provides no arbitrary shell UI, does not request root, does not install software on the source, and does not write to or delete source files. If ADB is unavailable, Phone Sync retains the original MTP/PTP path.
 
@@ -122,7 +124,7 @@ The Android **Data Reader** tab builds a local SQLite index from the verified re
 
 On Android tablets and unfolded foldables at least 600dp wide, **Auto** uses a Windows-style three-pane layout: Query filters, selectable Records, and record Detail remain visible together with independent scrolling. The Data Reader also provides explicit **Mobile** and **Tablet** layout choices; narrow phone screens stay in the mobile layout.
 
-The separate [RecoverByBackup APK](releases/RecoverByBackup-2.2.0-android.apk) is a standalone USB host backup application. It identifies attached USB sources, shows the detected platform/family and owner-selected recovery profile, requests Android USB permission, establishes encrypted app trust after explicit owner approval, uses owner-approved ADB shared storage when available, falls back to MTP/PTP, reopens every recovered copy for size and SHA-256 verification, and records unresolved enumeration or transfer failures.
+The separate [RecoverByBackup APK](releases/RecoverByBackup-2.2.1-android.apk) is a standalone USB host backup application. It identifies attached USB sources, shows the detected platform/family and owner-selected recovery profile, requests Android USB permission, establishes encrypted app trust after explicit owner approval, uses owner-approved ADB shared storage when available, falls back to MTP/PTP, reopens every recovered copy for size and SHA-256 verification, and records unresolved enumeration or transfer failures.
 
 Choose the destination before collection: this phone, a writable local/SD/USB/document-provider folder, OneDrive, Google Drive, or another installed app. **Recover, verify & package to selected destination** performs discovery, recovery, verification, packaging, whole-package SHA-256 verification, and destination handling as one staged job with live stage, item, byte, method, attempt, package, and copy progress. Local and SAF-folder copies are reopened and SHA-256 verified. OneDrive, Google Drive, and other app destinations receive one verified package through Android's owner-confirmed app handoff; the provider app controls remote upload completion, so RecoverByBackup reports a handoff rather than claiming cloud upload success.
 

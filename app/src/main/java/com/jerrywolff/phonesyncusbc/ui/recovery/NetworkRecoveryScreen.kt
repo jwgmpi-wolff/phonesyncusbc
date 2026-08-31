@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun NetworkRecoveryScreen(
+    onBack: () -> Unit,
     onDataRecovered: (messages: Int, contacts: Int, notes: Int) -> Unit,
 ) {
     var discoveredDevices by remember { mutableStateOf<List<DiscoveredDevice>>(emptyList()) }
@@ -56,6 +57,12 @@ fun NetworkRecoveryScreen(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+        OutlinedButton(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+        ) {
+            Text("Back to USB source")
+        }
         
         // Step 1: Discovery
         Card(

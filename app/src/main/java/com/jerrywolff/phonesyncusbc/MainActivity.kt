@@ -9,8 +9,10 @@ import android.content.IntentFilter
 import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.DocumentsContract
 import android.provider.Settings
@@ -55,6 +57,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -67,6 +70,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import com.jerrywolff.phonesyncusbc.data.BackupTargetType
@@ -120,6 +124,7 @@ import com.jerrywolff.phonesyncusbc.recovery.IosDataFetcher
 import com.jerrywolff.phonesyncusbc.recovery.IosNetworkRecoveryEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -147,15 +152,126 @@ private data class BackupActivityUi(
 
 @androidx.compose.material3.ExperimentalMaterial3Api
 class MainActivity : ComponentActivity() {
-    private val usbPermissionAction = "com.jerrywolff.phonesyncusbc.USB_PERMISSION"
+    private val usbPermissionAction: String
+        get() = "$packageName.USB_PERMISSION"
+    private val usbEventRevision = mutableIntStateOf(0)
+    private var usbEventReceiverRegistered = false
+    private var usbPermissionReceiverRegistered = false
+    private var pendingPermissionDeviceId: Int? = null
+    private var pendingAttachedDevice: UsbDevice? = null
+    private var knownUsbDeviceIds: Set<Int> = emptySet()
+    private val usbPermissionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            pendingPermissionDeviceId = null
+            val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
+            Toast.makeText(
+                context,
+                if (granted) "USB access granted." else "USB access was not granted.",
+                Toast.LENGTH_SHORT,
+            ).show()
+            publishUsbState(force = true)
+        }
+    }
+    private val usbEventReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            // Attach events are handled exclusively via the manifest intent-filter
+            // (onCreate/onNewIntent) to avoid double-processing the same attach.
+            when (intent.action) {
+                UsbManager.ACTION_USB_DEVICE_DETACHED -> {
+                    pendingPermissionDeviceId = null
+                    publishUsbState(force = true)
+                    Toast.makeText(context, "USB source disconnected.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingAttachedDevice = intent.usbDeviceExtra()
+        ContextCompat.registerReceiver(
+            this,
+            usbPermissionReceiver,
+            IntentFilter(usbPermissionAction),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        usbPermissionReceiverRegistered = true
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
             PhoneSyncApp(
                 onRequestUsbPermission = { source -> requestUsbPermission(source) },
+                usbEventRevision = usbEventRevision.intValue,
             )
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.usbDeviceExtra()?.let(::handleAttachedDevice)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!usbEventReceiverRegistered) {
+            ContextCompat.registerReceiver(
+                this,
+                usbEventReceiver,
+                IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED),
+                ContextCompat.RECEIVER_EXPORTED,
+            )
+            usbEventReceiverRegistered = true
+        }
+        publishUsbState()
+        pendingAttachedDevice?.let { device ->
+            pendingAttachedDevice = null
+            handleAttachedDevice(device)
+        }
+    }
+
+    override fun onStop() {
+        if (usbEventReceiverRegistered) {
+            unregisterReceiver(usbEventReceiver)
+            usbEventReceiverRegistered = false
+        }
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        if (usbPermissionReceiverRegistered) {
+            unregisterReceiver(usbPermissionReceiver)
+            usbPermissionReceiverRegistered = false
+        }
+        super.onDestroy()
+    }
+
+    private fun handleAttachedDevice(device: UsbDevice) {
+        publishUsbState(force = true)
+        val application = applicationContext as PhoneSyncApplication
+        val source = application.usbSourceResolver.attachedSources()
+            .firstOrNull { it.device.deviceId == device.deviceId }
+        if (source == null) {
+            Toast.makeText(
+                this,
+                "USB device connected, but no supported phone data interface was found.",
+                Toast.LENGTH_LONG,
+            ).show()
+            return
+        }
+        if (source.permissionGranted) {
+            Toast.makeText(this, "USB source detected and authorized.", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "USB source detected. Approve the access prompt.", Toast.LENGTH_LONG).show()
+            requestUsbPermission(source)
+        }
+    }
+
+    private fun publishUsbState(force: Boolean = false) {
+        val manager = getSystemService(UsbManager::class.java)
+        val currentIds = manager.deviceList.values.mapTo(linkedSetOf()) { it.deviceId }
+        if (force || currentIds != knownUsbDeviceIds) {
+            knownUsbDeviceIds = currentIds
+            usbEventRevision.intValue += 1
         }
     }
 
@@ -163,38 +279,36 @@ class MainActivity : ComponentActivity() {
         val manager = getSystemService(UsbManager::class.java)
         if (manager.hasPermission(source.device)) {
             Toast.makeText(this, "USB access is already granted. Rechecking the source.", Toast.LENGTH_SHORT).show()
-            recreate()
+            publishUsbState(force = true)
             return
         }
+        if (pendingPermissionDeviceId == source.device.deviceId) return
+        pendingPermissionDeviceId = source.device.deviceId
         val intent = PendingIntent.getBroadcast(
             this,
             0,
             Intent(usbPermissionAction).setPackage(packageName),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
-        registerReceiver(
-            object : BroadcastReceiver() {
-                override fun onReceive(context: Context, intent: Intent) {
-                    unregisterReceiver(this)
-                    val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
-                    Toast.makeText(
-                        context,
-                        if (granted) "USB access granted." else "USB access was not granted.",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    recreate()
-                }
-            },
-            IntentFilter(usbPermissionAction),
-            RECEIVER_NOT_EXPORTED,
-        )
         manager.requestPermission(source.device, intent)
+    }
+}
+
+private fun Intent.usbDeviceExtra(): UsbDevice? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelableExtra(UsbManager.EXTRA_DEVICE)
     }
 }
 
 @androidx.compose.material3.ExperimentalMaterial3Api
 @androidx.compose.runtime.Composable
-private fun PhoneSyncApp(onRequestUsbPermission: (AttachedSource) -> Unit) {
+private fun PhoneSyncApp(
+    onRequestUsbPermission: (AttachedSource) -> Unit,
+    usbEventRevision: Int,
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val application = context.applicationContext as PhoneSyncApplication
     val productName = remember {
@@ -295,8 +409,10 @@ private fun PhoneSyncApp(onRequestUsbPermission: (AttachedSource) -> Unit) {
     }
 
     fun refreshSource() {
+        val previouslySelectedDeviceId = selectedSource?.device?.deviceId
         sources = application.usbSourceResolver.attachedSources()
-        selectedSource = sources.singleOrNull()
+        selectedSource = sources.firstOrNull { it.device.deviceId == previouslySelectedDeviceId }
+            ?: sources.singleOrNull()
         recoveryDeviceType = RecoveryDeviceType.defaultFor(selectedSource?.detected)
         identity = null
         trust = null
@@ -304,6 +420,32 @@ private fun PhoneSyncApp(onRequestUsbPermission: (AttachedSource) -> Unit) {
         mtpScanSummary = null
         identityReadProgress = null
         identityReadError = null
+        message = when {
+            sources.isEmpty() ->
+                "USB scan completed: no compatible source is visible. On this phone choose USB controlled by This device. " +
+                    "On the source phone choose File transfer and enable USB debugging."
+            selectedSource == null ->
+                "${sources.size} USB sources detected. Select the phone to continue."
+            selectedSource?.permissionGranted == false ->
+                "${selectedSource?.detected?.displayName} detected. Approve Android's USB access prompt."
+            else ->
+                "${selectedSource?.detected?.displayName} detected. Reading its owner-authorized USB identity."
+        }
+        messageSection = AppSection.USB_SOURCE
+    }
+
+    LaunchedEffect(usbEventRevision) {
+        if (usbEventRevision > 0) refreshSource()
+    }
+
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            kotlinx.coroutines.delay(USB_SOURCE_POLL_INTERVAL_MILLIS)
+            val latestSources = application.usbSourceResolver.attachedSources()
+            val latestSignature = latestSources.map { it.device.deviceId to it.permissionGranted }
+            val currentSignature = sources.map { it.device.deviceId to it.permissionGranted }
+            if (latestSignature != currentSignature) refreshSource()
+        }
     }
 
     fun selectSource(selected: AttachedSource) {
@@ -1126,19 +1268,32 @@ private fun PhoneSyncApp(onRequestUsbPermission: (AttachedSource) -> Unit) {
     }
 
     fun copyAllUsbVisibleFilesAndRescan() {
-        val currentTrust = trust ?: return
-        val currentCapabilities = capabilities ?: return
+        val currentTrust = trust
+        val currentCapabilities = capabilities
+        if (currentTrust == null || currentCapabilities == null) {
+            message = "Reconnect the source and complete trust approval before copying all USB-visible files."
+            messageSection = AppSection.USB_SOURCE
+            return
+        }
         val authorizedCategories = currentCapabilities.supportedCategories
-        val updatedTrust = currentTrust.copy(
-            record = currentTrust.record.copy(authorizedCategories = authorizedCategories),
-            updatedAtEpochMillis = System.currentTimeMillis(),
-        )
-        application.trustStore.save(updatedTrust)
-        trust = updatedTrust
         selectedCategories = authorizedCategories
         recoveryIssues = emptyList()
         message = "All USB-visible external files are authorized. Starting a fresh collection."
         messageSection = AppSection.USB_SOURCE
+        // Persisting the updated authorization is best-effort; a Keystore failure here must never
+        // block the recovery the user just requested.
+        runCatching {
+            application.trustStore.save(
+                currentTrust.copy(
+                    record = currentTrust.record.copy(authorizedCategories = authorizedCategories),
+                    updatedAtEpochMillis = System.currentTimeMillis(),
+                ),
+            )
+        }.onSuccess { trust = trust?.copy(record = trust!!.record.copy(authorizedCategories = authorizedCategories)) }
+            .onFailure {
+                message = "Authorization could not be saved (${it.message ?: it.javaClass.simpleName}), but this collection still runs."
+                messageSection = AppSection.USB_SOURCE
+            }
         runUsbRecovery(packageAfterRecovery = false)
     }
 
@@ -1186,13 +1341,16 @@ private fun PhoneSyncApp(onRequestUsbPermission: (AttachedSource) -> Unit) {
             if (activeSection == AppSection.USB_SOURCE) item {
                 if (recoveryDeviceType == RecoveryDeviceType.NETWORK_IPHONE) {
                     NetworkRecoveryScreen(
+                        onBack = { recoveryDeviceType = RecoveryDeviceType.ANDROID },
                         onDataRecovered = { messages, contacts, notes ->
                             message = "Recovered $messages messages, $contacts contacts, and $notes notes from the iPhone companion app."
                             messageSection = AppSection.USB_SOURCE
                         },
                     )
                 } else if (recoveryDeviceType == RecoveryDeviceType.NETWORK_DEVICE) {
-                    GenericNetworkRecoveryScreen()
+                    GenericNetworkRecoveryScreen(
+                        onBack = { recoveryDeviceType = RecoveryDeviceType.ANDROID },
+                    )
                 } else {
                     SourceConnectionPanel(
                         sources = sources,
@@ -1203,6 +1361,19 @@ private fun PhoneSyncApp(onRequestUsbPermission: (AttachedSource) -> Unit) {
                         onRefresh = ::refreshSource,
                         onNetworkIphone = { recoveryDeviceType = RecoveryDeviceType.NETWORK_IPHONE },
                         onNetworkDevice = { recoveryDeviceType = RecoveryDeviceType.NETWORK_DEVICE },
+                        onOpenUsbSettings = {
+                            val opened = runCatching {
+                                context.startActivity(Intent("android.settings.USB_SETTINGS"))
+                            }.recoverCatching {
+                                context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                            }.isSuccess
+                            message = if (opened) {
+                                "USB settings opened. Choose USB controlled by This device on this phone."
+                            } else {
+                                "Open Android Settings and choose USB controlled by This device on this phone."
+                            }
+                            messageSection = AppSection.USB_SOURCE
+                        },
                         onRequestUsbPermission = onRequestUsbPermission,
                         onContinue = {
                             identityReadError = null
@@ -2628,6 +2799,7 @@ private fun SourceConnectionPanel(
     onRefresh: () -> Unit,
     onNetworkIphone: () -> Unit,
     onNetworkDevice: () -> Unit,
+    onOpenUsbSettings: () -> Unit,
     onRequestUsbPermission: (AttachedSource) -> Unit,
     onContinue: () -> Unit,
 ) {
@@ -2635,15 +2807,21 @@ private fun SourceConnectionPanel(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Connect an owned recovery source", style = MaterialTheme.typography.titleMedium)
             if (sources.isEmpty()) {
-                Text("Connect an Android phone, iPhone, or MTP/PTP device with a data-capable USB cable.")
+                Text(
+                    "Connect with a data-capable cable. This phone must control USB; the source phone must expose " +
+                        "File transfer or USB debugging.",
+                )
                 Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
                     Text("Find USB source")
+                }
+                OutlinedButton(onClick = onOpenUsbSettings, modifier = Modifier.fillMaxWidth()) {
+                    Text("Open USB settings")
                 }
                 OutlinedButton(onClick = onNetworkIphone, modifier = Modifier.fillMaxWidth()) {
                     Text("Recover from iPhone over Wi-Fi")
                 }
                 OutlinedButton(onClick = onNetworkDevice, modifier = Modifier.fillMaxWidth()) {
-                    Text("Recover files from another device over Wi-Fi/Bluetooth")
+                    Text("Recover files from another device over Wi-Fi")
                 }
             } else {
                 if (sources.size > 1 || source == null) {
@@ -3105,7 +3283,7 @@ private fun isVideoLike(entry: AuditEntry): Boolean {
 }
 
 @androidx.compose.runtime.Composable
-private fun GenericNetworkRecoveryScreen() {
+private fun GenericNetworkRecoveryScreen(onBack: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     var devices by remember { mutableStateOf<List<DiscoveredDevice>>(emptyList()) }
@@ -3116,7 +3294,7 @@ private fun GenericNetworkRecoveryScreen() {
     var manualPort by remember { mutableStateOf("8765") }
     val installPlan = remember {
         CompanionInstallPolicy.plan(
-            sourcePlatform = SourcePlatform.IOS,
+            sourcePlatform = SourcePlatform.ANDROID,
             appPackage = null,
             isHotspotConnected = true,
         )
@@ -3125,7 +3303,10 @@ private fun GenericNetworkRecoveryScreen() {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Recover files from another device", style = MaterialTheme.typography.titleMedium)
-            Text("Wi‑Fi discovery uses the PhoneSync companion protocol. Android hotspot networks can block mDNS/Bonjour discovery, so a direct IP fallback is included when the iPhone joins the hotspot.")
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                Text("Back to USB source")
+            }
+            Text("Wi-Fi discovery uses the PhoneSync companion protocol. Hotspot networks can block local discovery, so direct IP connection is available when both devices share the same network.")
             if (installPlan.requiresInstall) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -3178,7 +3359,7 @@ private fun GenericNetworkRecoveryScreen() {
             OutlinedTextField(
                 value = manualIp,
                 onValueChange = { manualIp = it },
-                label = { Text("iPhone IP address") },
+                label = { Text("Source device IP address") },
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
@@ -3192,7 +3373,7 @@ private fun GenericNetworkRecoveryScreen() {
                     val directIp = manualIp.trim()
                     val directPort = manualPort.toIntOrNull() ?: 8765
                     if (directIp.isEmpty()) {
-                        status = "Enter the iPhone IP address shown by the companion app before trying direct connection."
+                        status = "Enter the source device IP address shown by the companion app before trying direct connection."
                         return@Button
                     }
                     if (directPort <= 0 || directPort > 65535) {
@@ -3204,7 +3385,7 @@ private fun GenericNetworkRecoveryScreen() {
                         val fetcher = IosDataFetcher(directIp, directPort)
                         val sourceStatus = fetcher.checkStatus()
                         if (sourceStatus == null) {
-                            status = "Direct connection failed. Confirm the companion app is running, Local Network is allowed, and the iPhone is on the same hotspot or Wi‑Fi network."
+                            status = "Direct connection failed. Confirm the companion app is running and both devices are on the same hotspot or Wi-Fi network."
                             return@launch
                         }
                         val files = fetcher.fetchSharedFiles()
@@ -3236,7 +3417,7 @@ private fun GenericNetworkRecoveryScreen() {
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Find devices over Bluetooth")
+                Text("Open Bluetooth settings")
             }
             devices.forEach { device ->
                 OutlinedButton(
@@ -3291,4 +3472,5 @@ private fun GenericNetworkRecoveryScreen() {
 
 private const val PREVIEW_MAX_BYTES = 128 * 1024
 private const val IDENTITY_READ_TIMEOUT_MILLIS = 8_000L
+private const val USB_SOURCE_POLL_INTERVAL_MILLIS = 1_000L
 private const val MAX_VISIBLE_RECOVERY_ISSUES = 12

@@ -42,7 +42,10 @@ class DeviceKeyManager {
     }
 
     private fun encryptionKey(): SecretKey {
-        (keyStore.getKey(ENCRYPTION_ALIAS, null) as? SecretKey)?.let { return it }
+        // Some OEM keystores (observed on Samsung Knox) can throw instead of returning null for a
+        // corrupted or invalidated entry; treat that the same as "key missing" and regenerate.
+        runCatching { keyStore.getKey(ENCRYPTION_ALIAS, null) as? SecretKey }.getOrNull()?.let { return it }
+        runCatching { keyStore.deleteEntry(ENCRYPTION_ALIAS) }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE_PROVIDER).run {
             init(
                 KeyGenParameterSpec.Builder(
@@ -58,7 +61,8 @@ class DeviceKeyManager {
     }
 
     private fun hmacKey(): SecretKey {
-        (keyStore.getKey(PROOF_ALIAS, null) as? SecretKey)?.let { return it }
+        runCatching { keyStore.getKey(PROOF_ALIAS, null) as? SecretKey }.getOrNull()?.let { return it }
+        runCatching { keyStore.deleteEntry(PROOF_ALIAS) }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_HMAC_SHA256, KEYSTORE_PROVIDER).run {
             init(
                 KeyGenParameterSpec.Builder(
