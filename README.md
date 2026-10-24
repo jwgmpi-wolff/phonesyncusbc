@@ -2,6 +2,20 @@
 
 Android USB host for owner-authorized, external-device-only data recovery and read-only logical acquisition.
 
+<!-- project-downloads:start -->
+## APK and installer downloads
+
+| Package | Download | Source |
+| --- | --- | --- |
+| Android APK | [RecoverByBackup-2.2.1-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.2.1-android.apk) | repository package |
+| Android APK | [PhoneSyncDataReader-1.1.2-android-tablet.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-1.1.2-android-tablet.apk) | repository package |
+| Android APK (debug build) | [PhoneSyncUSB-C-debug.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncUSB-C-debug.apk) | repository package |
+
+Android may require approval to install apps from this download source. Debug APKs are labeled above. Windows executables that are not setup packages may require accompanying project files; follow the project-specific instructions below.
+
+- [Download the complete source ZIP](https://github.com/jwgmpi-wolff/phonesyncusbc/archive/refs/heads/main.zip).
+<!-- project-downloads:end -->
+
 ## Download
 
 [Download the current debug APK](releases/PhoneSyncUSB-C-debug.apk).
@@ -202,3 +216,9 @@ The task assembles the debug APK, verifies it against the repository trust manif
 For an intentional new release, update the APK and trust manifest together only after validating the build and confirming the expected signer certificate. Never commit a signing keystore or password.
 
 The APK is also produced at `app/build/outputs/apk/debug/app-debug.apk`.
+
+## Copyright
+
+Copyright (c) 2026 Jerry Wolff. See [COPYRIGHT](COPYRIGHT) for the scope of this
+notice. Existing licenses and third-party attribution remain unchanged; this
+notice does not grant additional permissions.
