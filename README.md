@@ -5,15 +5,46 @@ Android USB host for owner-authorized, external-device-only data recovery and re
 <!-- project-downloads:start -->
 ## APK and installer downloads
 
-| Package | Download | Source |
+Every available project package is indexed below, including older versions. Prefer the newest stable version for your platform and architecture. Debug APKs and prereleases are labeled; archives are not necessarily standalone installers.
+
+### Repository-hosted packages: all available versions
+
+| Version / source | Package | Download |
 | --- | --- | --- |
-| Android APK | [RecoverByBackup-2.2.1-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.2.1-android.apk) | repository package |
-| Android APK | [PhoneSyncDataReader-1.1.2-android-tablet.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-1.1.2-android-tablet.apk) | repository package |
-| Android APK (debug build) | [PhoneSyncUSB-C-debug.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncUSB-C-debug.apk) | repository package |
+| repository | Android APK | [releases/PhoneSyncDataReader-1.0.0-android-tablet.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-1.0.0-android-tablet.apk) |
+| repository | Android APK | [releases/PhoneSyncDataReader-1.0.1-android-tablet.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-1.0.1-android-tablet.apk) |
+| repository | Android APK | [releases/PhoneSyncDataReader-1.1.0-android-tablet.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-1.1.0-android-tablet.apk) |
+| repository | Android APK | [releases/PhoneSyncDataReader-1.1.1-android-tablet.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-1.1.1-android-tablet.apk) |
+| repository | Android APK | [releases/PhoneSyncDataReader-1.1.2-android-tablet.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-1.1.2-android-tablet.apk) |
+| repository | Distribution archive | [releases/PhoneSyncDataReader-2.2.0-win-arm64.zip](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-2.2.0-win-arm64.zip) |
+| repository | Distribution archive | [releases/PhoneSyncDataReader-2.2.0-win-x64.zip](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-2.2.0-win-x64.zip) |
+| repository | Distribution archive | [releases/PhoneSyncDataReader-2.3.1-win-arm64.zip](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-2.3.1-win-arm64.zip) |
+| repository | Distribution archive | [releases/PhoneSyncDataReader-2.3.1-win-x64.zip](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-2.3.1-win-x64.zip) |
+| repository | Distribution archive | [releases/PhoneSyncDataReader-2.4.0-win-arm64.zip](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-2.4.0-win-arm64.zip) |
+| repository | Distribution archive | [releases/PhoneSyncDataReader-2.4.0-win-x64.zip](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncDataReader-2.4.0-win-x64.zip) |
+| repository | Android APK (debug) | [releases/PhoneSyncUSB-C-debug.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/PhoneSyncUSB-C-debug.apk) |
+| repository | Android APK | [releases/RecoverByBackup-1.2.0-android-tablet.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-1.2.0-android-tablet.apk) |
+| repository | Android APK | [releases/RecoverByBackup-2.0.0-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.0.0-android.apk) |
+| repository | Android APK | [releases/RecoverByBackup-2.0.1-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.0.1-android.apk) |
+| repository | Android APK | [releases/RecoverByBackup-2.1.0-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.1.0-android.apk) |
+| repository | Android APK | [releases/RecoverByBackup-2.1.1-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.1.1-android.apk) |
+| repository | Android APK | [releases/RecoverByBackup-2.1.3-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.1.3-android.apk) |
+| repository | Android APK | [releases/RecoverByBackup-2.1.4-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.1.4-android.apk) |
+| repository | Android APK | [releases/RecoverByBackup-2.1.5-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.1.5-android.apk) |
+| repository | Android APK | [releases/RecoverByBackup-2.2.0-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.2.0-android.apk) |
+| repository | Android APK | [releases/RecoverByBackup-2.2.1-android.apk](https://github.com/jwgmpi-wolff/phonesyncusbc/raw/refs/heads/main/releases/RecoverByBackup-2.2.1-android.apk) |
 
-Android may require approval to install apps from this download source. Debug APKs are labeled above. Windows executables that are not setup packages may require accompanying project files; follow the project-specific instructions below.
+Git LFS links download the package itself, not a pointer file. Executables without a setup wrapper may require accompanying project files.
 
-- [Download the complete source ZIP](https://github.com/jwgmpi-wolff/phonesyncusbc/archive/refs/heads/main.zip).
+### Setup scripts and source
+
+- [Setup script: scripts/install_iphone_companion.ps1](./scripts/install_iphone_companion.ps1)
+- [Setup script: scripts/install_windows_reader.ps1](./scripts/install_windows_reader.ps1)
+
+- [Download the complete source ZIP](https://github.com/jwgmpi-wolff/phonesyncusbc/archive/refs/heads/main.zip). Extract the complete checkout before running setup scripts unless the project instructions explicitly support standalone installation.
+- [Browse all releases and their assets](https://github.com/jwgmpi-wolff/phonesyncusbc/releases).
+
+Android may require approval to install apps from the download source. Follow the project-specific installation, signing, checksum, and prerequisite instructions elsewhere in this README.
 <!-- project-downloads:end -->
 
 ## Download
